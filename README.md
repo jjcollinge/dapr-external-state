@@ -9,3 +9,22 @@ Dapr also uses an [`external` state store provider](https://github.com/jjcolling
 This service then maps the protobuf messages to the Dapr state store component types and calls a local state store.
 This service is written in Go so that it can leverage the existing state stores. However, this gRPC service could just as easily be written in a different
 language and call custom state store implementations.
+
+# Usage
+To use the `external` data store you must extend your state store component with an additional metadata property `externalAddress` that points to the address of the external state store you are running. The rest of the metadata should be aligned to the concrete state store implementation you are using (in this case Redis).
+
+```yaml
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: statestore
+  namespace: statestore
+spec:
+  type: state.external
+  version: v1
+  metadata:
+  - name: externalAddress
+    value: localhost:9191
+  - name: redisHost
+    value: localhost:6379
+```

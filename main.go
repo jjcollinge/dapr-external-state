@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net"
+	"os"
 
 	service "dapr-external-state/service"
 
@@ -18,11 +19,19 @@ import (
  ---------
  This code was hacked together in a couple of hours and should only be played with.
 */
-func main() {
-	port := "9191"
-	fmt.Printf("external state store listening on: %s\n", port)
+const (
+	EXT_SS_PORT_ENV_VAR_NAME = "EXT_SS_PORT"
+	DEFAULT_EXT_SS_PORT      = "9191"
+)
 
-	// We inject a redis state store here but in theory this could by any state store.
+func main() {
+	port := os.Getenv(EXT_SS_PORT_ENV_VAR_NAME)
+	if port == "" {
+		port = DEFAULT_EXT_SS_PORT
+	}
+	fmt.Printf("External state store listening on: %s\n", port)
+
+	// We inject a redis state store here but in theory this could by any of the existing state stores.
 	stateStore := redis.NewRedisStateStore(logger.NewLogger("redis"))
 	storeService := service.NewStoreService(stateStore)
 
@@ -31,6 +40,9 @@ func main() {
 		panic(fmt.Sprintf("failed to listen: %v", err))
 	}
 
+	// TODO:
+	// * Add security
+	// * Add tracing
 	var opts []grpc.ServerOption
 	grpcServer := grpc.NewServer(opts...)
 	statev1pb.RegisterStoreServer(grpcServer, storeService)
