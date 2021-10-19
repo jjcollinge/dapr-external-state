@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net"
 
-	redis_service "dapr-external-state/redis"
+	service "dapr-external-state/service"
 
 	statev1pb "github.com/dapr/components-contrib/state/proto/v1"
 	"github.com/dapr/components-contrib/state/redis"
@@ -14,16 +14,17 @@ import (
 )
 
 /*
- This is an experiment to create an external Redis state store for Dapr.
+ This is an experiment to create an external state store for Dapr.
  ---------
  This code was hacked together in a couple of hours and should only be played with.
 */
 func main() {
 	port := "9191"
-	fmt.Printf("external redis state store listening on: %s\n", port)
+	fmt.Printf("external state store listening on: %s\n", port)
 
+	// We inject a redis state store here but in theory this could by any state store.
 	stateStore := redis.NewRedisStateStore(logger.NewLogger("redis"))
-	storeService := redis_service.NewStoreService(stateStore)
+	storeService := service.NewStoreService(stateStore)
 
 	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%s", port))
 	if err != nil {

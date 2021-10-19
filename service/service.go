@@ -1,19 +1,18 @@
-package redis
+package service
 
 import (
 	"context"
 
 	"github.com/dapr/components-contrib/state"
 	statev1pb "github.com/dapr/components-contrib/state/proto/v1"
-	"github.com/dapr/components-contrib/state/redis"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type StoreService struct {
-	store *redis.StateStore
+	store state.Store
 }
 
-func NewStoreService(store *redis.StateStore) *StoreService {
+func NewStoreService(store state.Store) *StoreService {
 	return &StoreService{
 		store: store,
 	}
