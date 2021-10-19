@@ -4,7 +4,7 @@ The code in this repo was hacked together in a couple of hours and is only meant
 state stores in Dapr.
 
 This repo relies on the following forks of Dapr:
-* https://github.com/jjcollinge/components-contrib/blob/ext-state
+* https://github.com/jjcollinge/components-contrib/tree/ext-state
 * https://github.com/jjcollinge/dapr/tree/ext-state
 
 # gRPC API
