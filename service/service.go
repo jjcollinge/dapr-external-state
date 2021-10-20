@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 
 	"github.com/dapr/components-contrib/state"
 	statev1pb "github.com/dapr/components-contrib/state/proto/v1"
@@ -45,20 +47,21 @@ func (s StoreService) Features(context.Context, *emptypb.Empty) (*statev1pb.Feat
 	return &featuresRes, nil
 }
 
-func (s StoreService) Delete(ctx context.Context, delReqPb *statev1pb.DeleteRequest) (*emptypb.Empty, error) {
-	delReq := state.DeleteRequest{
-		Key:      delReqPb.Key,
-		Metadata: delReqPb.Metadata,
+func (s StoreService) Delete(ctx context.Context, in *statev1pb.DeleteRequest) (*emptypb.Empty, error) {
+	req := state.DeleteRequest{
+		Key:      in.Key,
+		Metadata: in.Metadata,
 	}
-
-	if delReqPb.Options != nil {
-		delReq.Options = state.DeleteStateOption{
-			Concurrency: pbToConcurrency(delReqPb.Options.Concurrency),
-			Consistency: pbToConsistency(delReqPb.Options.Consistency),
+	if in.Etag != nil {
+		req.ETag = &in.Etag.Value
+	}
+	if in.Options != nil {
+		req.Options = state.DeleteStateOption{
+			Consistency: stateConsistencyToString(in.Options.Consistency),
+			Concurrency: stateConcurrencyToString(in.Options.Concurrency),
 		}
 	}
-
-	err := s.store.Delete(&delReq)
+	err := s.store.Delete(&req)
 	if err != nil {
 		return nil, err
 	}
@@ -66,51 +69,55 @@ func (s StoreService) Delete(ctx context.Context, delReqPb *statev1pb.DeleteRequ
 	return &emptypb.Empty{}, nil
 }
 
-func (s StoreService) Get(ctx context.Context, getReqPb *statev1pb.GetRequest) (*statev1pb.GetResponse, error) {
-	getReq := state.GetRequest{
-		Key:      getReqPb.Key,
-		Metadata: getReqPb.Metadata,
+func (s StoreService) Get(ctx context.Context, in *statev1pb.GetRequest) (*statev1pb.GetResponse, error) {
+	req := state.GetRequest{
+		Key:      in.Key,
+		Metadata: in.Metadata,
 		Options: state.GetStateOption{
-			Consistency: pbToConsistency(getReqPb.Consistency),
+			Consistency: stateConsistencyToString(in.Consistency),
 		},
 	}
-	getRes, err := s.store.Get(&getReq)
+
+	getResponse, err := s.store.Get(&req)
 	if err != nil {
 		return nil, err
 	}
 
-	getResPb := statev1pb.GetResponse{
-		Data:     getRes.Data,
-		Metadata: getRes.Metadata,
+	res := statev1pb.GetResponse{}
+	if getResponse != nil {
+		res.Etag = &common.Etag{
+			Value: stringValueOrEmpty(getResponse.ETag),
+		}
+		res.Data = getResponse.Data
+		res.Metadata = getResponse.Metadata
 	}
 
-	if getRes.ETag != nil {
-		getResPb.Etag = &common.Etag{
-			Value: *getRes.ETag,
-		}
-	}
-	return &getResPb, nil
+	return &res, nil
 }
 
-func (s StoreService) Set(ctx context.Context, setReqPb *statev1pb.SetRequest) (*emptypb.Empty, error) {
-	setReq := state.SetRequest{
-		Key:      setReqPb.Key,
-		Value:    setReqPb.Value, // TODO: Fix data encoding/decoding.
-		Metadata: setReqPb.Metadata,
+func (s StoreService) Set(ctx context.Context, in *statev1pb.SetRequest) (*emptypb.Empty, error) {
+	// TODO: How should we decode the data?
+	var bytes []byte
+	err := json.Unmarshal(bytes, &in.Value)
+	if err != nil {
+		return nil, err
 	}
-
-	if setReqPb.Options != nil {
-		setReq.Options = state.SetStateOption{
-			Concurrency: pbToConcurrency(setReqPb.Options.Concurrency),
-			Consistency: pbToConsistency(setReqPb.Options.Consistency),
+	req := state.SetRequest{
+		Key:      in.Key,
+		Value:    bytes,
+		Metadata: in.Metadata,
+	}
+	if in.Etag != nil {
+		req.ETag = &in.Etag.Value
+	}
+	if in.Options != nil {
+		req.Options = state.SetStateOption{
+			Concurrency: stateConcurrencyToString(in.Options.Concurrency),
+			Consistency: stateConsistencyToString(in.Options.Consistency),
 		}
 	}
 
-	if setReqPb.Etag != nil {
-		setReq.ETag = &setReqPb.Etag.Value
-	}
-
-	err := s.store.Set(&setReq)
+	err = s.store.Set(&req)
 	if err != nil {
 		return nil, err
 	}
@@ -127,28 +134,25 @@ func (s StoreService) Ping(ctx context.Context, none *emptypb.Empty) (*emptypb.E
 	return &emptypb.Empty{}, nil
 }
 
-func (s StoreService) BulkDelete(ctx context.Context, bulkDelReqPb *statev1pb.BulkDeleteRequest) (*emptypb.Empty, error) {
-	items := make([]state.DeleteRequest, len(bulkDelReqPb.Items))
-	for _, i := range bulkDelReqPb.Items {
-		item := state.DeleteRequest{
-			Key:      i.Key,
-			Metadata: i.Metadata,
+func (s StoreService) BulkDelete(ctx context.Context, in *statev1pb.BulkDeleteRequest) (*emptypb.Empty, error) {
+	reqs := make([]state.DeleteRequest, 0, len(in.Items))
+	for _, items := range in.Items {
+		req := state.DeleteRequest{
+			Key:      items.Key,
+			Metadata: items.Metadata,
 		}
-
-		if i.Options != nil {
-			item.Options = state.DeleteStateOption{
-				Concurrency: pbToConcurrency(i.Options.Concurrency),
-				Consistency: pbToConsistency(i.Options.Consistency),
+		if items.Etag != nil {
+			req.ETag = &items.Etag.Value
+		}
+		if items.Options != nil {
+			req.Options = state.DeleteStateOption{
+				Concurrency: stateConcurrencyToString(items.Options.Concurrency),
+				Consistency: stateConsistencyToString(items.Options.Consistency),
 			}
 		}
-
-		if i.Etag != nil {
-			item.ETag = &i.Etag.Value
-		}
-		items = append(items, item)
+		reqs = append(reqs, req)
 	}
-
-	err := s.store.BulkDelete(items)
+	err := s.store.BulkDelete(reqs)
 	if err != nil {
 		return nil, err
 	}
@@ -156,67 +160,69 @@ func (s StoreService) BulkDelete(ctx context.Context, bulkDelReqPb *statev1pb.Bu
 	return &emptypb.Empty{}, nil
 }
 
-func (s StoreService) BulkGet(ctx context.Context, bulkGetReqPb *statev1pb.BulkGetRequest) (*statev1pb.BulkGetResponse, error) {
-	reqItems := make([]state.GetRequest, len(bulkGetReqPb.Items))
-	for _, i := range bulkGetReqPb.Items {
-		reqItems = append(reqItems, state.GetRequest{
+func (s StoreService) BulkGet(ctx context.Context, in *statev1pb.BulkGetRequest) (*statev1pb.BulkGetResponse, error) {
+	reqs := make([]state.GetRequest, len(in.Items))
+	for _, i := range in.Items {
+		reqs = append(reqs, state.GetRequest{
 			Key:      i.Key,
 			Metadata: i.Metadata,
 			Options: state.GetStateOption{
-				Consistency: pbToConsistency(i.Consistency),
+				Consistency: stateConsistencyToString(i.Consistency),
 			},
 		})
 	}
 
-	got, getRes, err := s.store.BulkGet(reqItems)
-	if err != nil {
-		return nil, err
+	bulkGetResp := &statev1pb.BulkGetResponse{}
+	if len(in.Items) == 0 {
+		return bulkGetResp, nil
 	}
 
-	resItems := make([]*statev1pb.BulkStateItem, len(getRes))
-	for _, r := range getRes {
-		item := &statev1pb.BulkStateItem{
-			Data:     r.Data,
-			Metadata: r.Metadata,
-			Key:      r.Key,
-			Error:    r.Error,
+	bulkGet, responses, err := s.store.BulkGet(reqs)
+	if bulkGet {
+		if err != nil {
+			return nil, err
 		}
-
-		if r.ETag != nil {
-			item.Etag = &common.Etag{
-				Value: *r.ETag,
+		for _, r := range responses {
+			item := &statev1pb.BulkStateItem{
+				Key:  r.Key,
+				Data: r.Data,
+				Etag: &common.Etag{
+					Value: stringValueOrEmpty(r.ETag),
+				},
+				Metadata: r.Metadata,
+				Error:    r.Error,
 			}
+			bulkGetResp.Items = append(bulkGetResp.Items, item)
 		}
-		resItems = append(resItems, item)
+		return bulkGetResp, nil
 	}
 
-	return &statev1pb.BulkGetResponse{
-		Items: resItems,
-		Got:   got,
-	}, nil
+	// TODO: Implement fallback...
+	return nil, errors.New("bulk get not supported")
 }
 
-func (s StoreService) BulkSet(ctx context.Context, bulkSetReqPb *statev1pb.BulkSetRequest) (*emptypb.Empty, error) {
-	items := make([]state.SetRequest, len(bulkSetReqPb.Items))
-	for _, i := range bulkSetReqPb.Items {
-		item := state.SetRequest{
+func (s StoreService) BulkSet(ctx context.Context, in *statev1pb.BulkSetRequest) (*emptypb.Empty, error) {
+	reqs := make([]state.SetRequest, len(in.Items))
+	for _, i := range in.Items {
+		req := state.SetRequest{
 			Key:      i.Key,
 			Metadata: i.Metadata,
-			Value:    i.Value, // TODO: Fix data encoding/decoding.
+			Value:    i.Value,
 		}
-
+		if i.Etag != nil {
+			req.ETag = &i.Etag.Value
+		}
 		if i.Options != nil {
-			item.Options = state.SetStateOption{
-				Concurrency: pbToConcurrency(i.Options.Concurrency),
-				Consistency: pbToConsistency(i.Options.Consistency),
+			req.Options = state.SetStateOption{
+				Concurrency: stateConcurrencyToString(i.Options.Concurrency),
+				Consistency: stateConsistencyToString(i.Options.Consistency),
 			}
 		}
 
-		items = append(items, item)
-
+		reqs = append(reqs, req)
 	}
 
-	err := s.store.BulkSet(items)
+	err := s.store.BulkSet(reqs)
 	if err != nil {
 		return nil, err
 	}
@@ -224,32 +230,32 @@ func (s StoreService) BulkSet(ctx context.Context, bulkSetReqPb *statev1pb.BulkS
 	return &emptypb.Empty{}, nil
 }
 
-// TODO: Do this in a better way.
-func pbToConcurrency(concurrency common.StateOptions_StateConcurrency) string {
-	switch concurrency.Enum() {
-	case common.StateOptions_CONCURRENCY_FIRST_WRITE.Enum():
-		return "first_write"
-	case common.StateOptions_CONCURRENCY_LAST_WRITE.Enum():
-		return "last_write"
-	case common.StateOptions_CONCURRENCY_UNSPECIFIED.Enum():
-	default:
-		return ""
+func stateConsistencyToString(c common.StateOptions_StateConsistency) string {
+	switch c {
+	case common.StateOptions_CONSISTENCY_EVENTUAL:
+		return "eventual"
+	case common.StateOptions_CONSISTENCY_STRONG:
+		return "strong"
 	}
 
 	return ""
 }
 
-// TODO: Do this in a better way.
-func pbToConsistency(consistency common.StateOptions_StateConsistency) string {
-	switch consistency.Enum() {
-	case common.StateOptions_CONSISTENCY_EVENTUAL.Enum().Enum():
-		return "eventual"
-	case common.StateOptions_CONSISTENCY_STRONG.Enum().Enum():
-		return "strong"
-	case common.StateOptions_CONSISTENCY_UNSPECIFIED.Enum().Enum():
-	default:
-		return ""
+func stateConcurrencyToString(c common.StateOptions_StateConcurrency) string {
+	switch c {
+	case common.StateOptions_CONCURRENCY_FIRST_WRITE:
+		return "first-write"
+	case common.StateOptions_CONCURRENCY_LAST_WRITE:
+		return "last-write"
 	}
 
 	return ""
+}
+
+func stringValueOrEmpty(value *string) string {
+	if value == nil {
+		return ""
+	}
+
+	return *value
 }

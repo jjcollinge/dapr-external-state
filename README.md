@@ -9,7 +9,7 @@ This repo relies on the following forks of Dapr:
 
 # gRPC API
 This program hosts a gRPC API for the Dapr State Store components based on [this `proto` definition](https://github.com/jjcollinge/components-contrib/blob/ext-state/state/proto/v1/store.proto).
-Dapr also uses an [`external` state store provider](https://github.com/jjcollinge/components-contrib/tree/ext-state/state/external) which is loaded [here](https://github.com/jjcollinge/dapr/blob/4b442ec9de478ce344d9ac682959dfdde0c0e997/cmd/daprd/main.go#L240).
+The Dapr fork also uses an [`external` state store provider](https://github.com/jjcollinge/components-contrib/tree/ext-state/state/external) which is loaded [here](https://github.com/jjcollinge/dapr/blob/4b442ec9de478ce344d9ac682959dfdde0c0e997/cmd/daprd/main.go#L240).
 This service then maps the protobuf messages to the Dapr state store component types and calls a local state store.
 This service is written in Go so that it can leverage the existing state stores. However, this gRPC service could just as easily be written in a different
 language and call custom state store implementations.
@@ -25,7 +25,7 @@ go run main.go
 
 ### Components
 
-To use the `external` state store with Dapr you must define a state store component as normal.
+To use the `external` state store with the Dapr fork you must define a state store component as normal.
 The metadata will be sent to the external state store but we must first know where that external state store is hosted.
 Therefore, we can simply add an additional property `externalAddress` to our component metadata that points to the address of the external state store you are running. The rest of the metadata should be aligned to the concrete state store implementation you are using (in this case Redis).
 
