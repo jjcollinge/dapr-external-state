@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 
 	"github.com/dapr/components-contrib/state"
@@ -96,15 +95,10 @@ func (s StoreService) Get(ctx context.Context, in *statev1pb.GetRequest) (*state
 }
 
 func (s StoreService) Set(ctx context.Context, in *statev1pb.SetRequest) (*emptypb.Empty, error) {
-	// TODO: How should we decode the data?
-	var bytes []byte
-	err := json.Unmarshal(bytes, &in.Value)
-	if err != nil {
-		return nil, err
-	}
+	// TODO: Do we need to decode the data?
 	req := state.SetRequest{
 		Key:      in.Key,
-		Value:    bytes,
+		Value:    in.Value,
 		Metadata: in.Metadata,
 	}
 	if in.Etag != nil {
@@ -117,7 +111,7 @@ func (s StoreService) Set(ctx context.Context, in *statev1pb.SetRequest) (*empty
 		}
 	}
 
-	err = s.store.Set(&req)
+	err := s.store.Set(&req)
 	if err != nil {
 		return nil, err
 	}
@@ -204,6 +198,7 @@ func (s StoreService) BulkGet(ctx context.Context, in *statev1pb.BulkGetRequest)
 func (s StoreService) BulkSet(ctx context.Context, in *statev1pb.BulkSetRequest) (*emptypb.Empty, error) {
 	reqs := make([]state.SetRequest, len(in.Items))
 	for _, i := range in.Items {
+		// TODO: Do we need to decode the data?
 		req := state.SetRequest{
 			Key:      i.Key,
 			Metadata: i.Metadata,
