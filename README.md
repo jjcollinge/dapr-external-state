@@ -27,7 +27,7 @@ go run main.go
 
 To use the `external` state store with the Dapr fork you must define a state store component as normal.
 The metadata will be sent to the external state store but we must first know where that external state store is hosted.
-Therefore, we can simply add an additional property `externalAddress` to our component metadata that points to the address of the external state store you are running. The rest of the metadata should be aligned to the concrete state store implementation you are using (in this case Redis).
+Therefore, we can simply add an additional property `externalAddress` to our component metadata that points to the address of the external state store you are running (this will be stripped before sending to the remote state store). The rest of the metadata should be aligned to the concrete state store implementation you are using (in this case Redis).
 
 ```yaml
 apiVersion: dapr.io/v1alpha1
