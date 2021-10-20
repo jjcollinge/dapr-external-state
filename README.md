@@ -46,3 +46,11 @@ spec:
   - name: redisHost # These properties stay the same as the concrete state store.
     value: localhost:6379
 ```
+
+## TODOs
+- [ ] Design review
+- [ ] Security (mTLS)
+- [ ] Telemetry
+- [ ] Refactor
+- [ ] Conformance
+- [ ] Tooling
