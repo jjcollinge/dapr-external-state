@@ -3,6 +3,8 @@ This is an experiment to see whether or not we can easily integrate an external 
 The code in this repo was hacked together in a couple of hours and is only meant to demonstrate a potential approach to supporting external
 state stores in Dapr.
 
+![](./assets/img/dapr-external-state.gif)
+
 This repo relies on the following forks of Dapr:
 * https://github.com/jjcollinge/components-contrib/tree/ext-state
 * https://github.com/jjcollinge/dapr/tree/ext-state
