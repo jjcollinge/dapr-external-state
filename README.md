@@ -14,6 +14,8 @@ This service then maps the protobuf messages to the Dapr state store component t
 This service is written in Go so that it can leverage the existing state stores. However, this gRPC service could just as easily be written in a different
 language and call custom state store implementations.
 
+![](./assets/img/overview.png)
+
 # Usage
 To run the external state store service. Run the command below:
 
